@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bangalore Art Watch — Dashboard & Scraper</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .badge-museum { background-color: #DBEAFE; color: #1E40AF; }
+        .badge-commercial { background-color: #FCE7F3; color: #9D174D; }
+        .badge-independent { background-color: #FEF3C7; color: #92400E; }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen">
+
+    <header class="border-b border-slate-800 bg-slate-950/80 backdrop-blur sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 py-4 flex flex-wrap justify-between items-center gap-4">
+            <div class="flex items-center space-x-3">
+                <span class="text-3xl">🎨</span>
+                <div>
+                    <h1 class="text-xl font-bold text-white tracking-wide">Bangalore Art Watch</h1>
+                    <p class="text-xs text-slate-400">Monitoring Visual Arts Ecosystems in Bengaluru</p>
+                </div>
+            </div>
+            <div class="flex items-center space-x-3">
+                <button onclick="runScraperPipeline()" id="scrapeBtn" class="bg-indigo-600 hover:bg-indigo-500 text-white font-medium px-4 py-2 rounded-lg text-sm transition flex items-center space-x-2">
+                    <span id="spinner" class="hidden animate-spin">🔄</span>
+                    <span>Trigger Web Scraper</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 py-8">
+        
+        <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            <div class="bg-slate-800/60 border border-slate-700/50 p-4 rounded-xl">
+                <p class="text-xs text-slate-400 font-medium">Total Tracked Events</p>
+                <p id="statTotal" class="text-2xl font-bold text-white mt-1">0</p>
+            </div>
+            <div class="bg-slate-800/60 border border-slate-700/50 p-4 rounded-xl">
+                <p class="text-xs text-slate-400 font-medium">Active Venues</p>
+                <p id="statVenues" class="text-2xl font-bold text-indigo-400 mt-1">0</p>
+            </div>
+            <div class="bg-slate-800/60 border border-slate-700/50 p-4 rounded-xl">
+                <p class="text-xs text-slate-400 font-medium">Ongoing Shows</p>
+                <p id="statOngoing" class="text-2xl font-bold text-emerald-400 mt-1">0</p>
+            </div>
+            <div class="bg-slate-800/60 border border-slate-700/50 p-4 rounded-xl">
+                <p class="text-xs text-slate-400 font-medium">Last Scraped Sync</p>
+                <p id="statSync" class="text-2xl font-bold text-slate-300 mt-1">Never</p>
+            </div>
+        </section>
+
+        <section class="flex flex-col md:flex-row gap-4 mb-8">
+            <div class="flex-1">
+                <input type="text" id="searchInput" oninput="renderDashboard()" placeholder="Search exhibitions, artists, or venues (e.g. GallerySKE, MAP)..." 
+                    class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500">
+            </div>
+            <div class="flex gap-2">
+                <select id="categoryFilter" onchange="renderDashboard()" class="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-indigo-500">
+                    <option value="All">All Categories</option>
+                    <option value="Museum / Institutional">Museum / Institutional</option>
+                    <option value="Commercial Gallery">Commercial Gallery</option>
+                    <option value="Independent Hub">Independent Hub</option>
+                </select>
+                <select id="statusFilter" onchange="renderDashboard()" class="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-indigo-500">
+                    <option value="All">All Statuses</option>
+                    <option value="Ongoing">Ongoing</option>
+                    <option value="Upcoming">Upcoming</option>
+                </select>
+            </div>
+        </section>
+
+        <section id="eventsContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            </section>
+
+    </main>
+
+    <script>
+        // Default Seed Data
+        const defaultEvents = [
+            {
+                id: 1,
+                title: "Shadows & Silhouettes: Modernist Retrospective",
+                venue: "Museum of Art & Photography (MAP)",
+                category: "Museum / Institutional",
+                status: "Ongoing",
+                dates: "Aug 15 - Oct 30, 2026",
+                url: "https://map-india.org",
+                scrapedAt: "2026-08-31",
+                description: "Exploring post-independence South Asian photography and modern installation work."
+            },
+            {
+                id: 2,
+                title: "Material Memory & Abstraction",
+                venue: "GallerySKE",
+                category: "Commercial Gallery",
+                status: "Ongoing",
+                dates: "Aug 01 - Sep 20, 2026",
+                url: "https://galleryske.com",
+                scrapedAt: "2026-08-31",
+                description: "A dual-artist show featuring contemporary paper sculptures and site-specific spatial works."
+            },
+            {
+                id: 3,
+                title: "Open Residency & Alternative Printmaking Showcase",
+                venue: "1. Shanthi Road",
+                category: "Independent Hub",
+                status: "Upcoming",
+                dates: "Sep 05 - Sep 18, 2026",
+                url: "https://1shanthiroad.com",
+                scrapedAt: "2026-08-31",
+                description: "An interactive experimental print archive open studio by visiting regional artist fellows."
+            },
+            {
+                id: 4,
+                title: "National Triennale Preview",
+                venue: "NGMA Bengaluru",
+                category: "Museum / Institutional",
+                status: "Upcoming",
+                dates: "Sep 12 - Nov 01, 2026",
+                url: "https://ngmaindia.gov.in/ngma_bangaluru.asp",
+                scrapedAt: "2026-08-31",
+                description: "Modern Indian masters collection curated around urban ecology and regional topographies."
+            }
+        ];
+
+        // Storage Initialization
+        function getStoredEvents() {
+            const data = localStorage.getItem('art_watch_data');
+            return data ? JSON.parse(data) : defaultEvents;
+        }
+
+        function saveEvents(data) {
+            localStorage.setItem('art_watch_data', JSON.stringify(data));
+        }
+
+        // Mock Scraper Simulation
+        async function runScraperPipeline() {
+            const btn = document.getElementById('scrapeBtn');
+            const spinner = document.getElementById('spinner');
+            btn.disabled = true;
+            spinner.classList.remove('hidden');
+
+            // Simulate Network Request Delay
+            await new Promise(resolve => setTimeout(resolve, 1200));
+
+            const currentData = getStoredEvents();
+            
+            // Add freshly scraped dynamic entry
+            const newScrapedEvent = {
+                id: Date.now(),
+                title: "New Media Experiments: Audio-Visual Intersections",
+                venue: "Gallery Sumukha",
+                category: "Commercial Gallery",
+                status: "Ongoing",
+                dates: "Aug 2026 - Oct 2026",
+                url: "https://sumukha.com",
+                scrapedAt: new Date().toISOString().split('T')[0],
+                description: "Scraped live feed: Digital video installations and generative algorithmic paintings."
+            };
+
+            const updatedData = [newScrapedEvent, ...currentData.filter(e => e.title !== newScrapedEvent.title)];
+            saveEvents(updatedData);
+
+            spinner.classList.add('hidden');
+            btn.disabled = false;
+
+            renderDashboard();
+        }
+
+        // Helper Badge Renderer
+        function getBadgeClass(category) {
+            if (category === "Museum / Institutional") return "badge-museum";
+            if (category === "Commercial Gallery") return "badge-commercial";
+            return "badge-independent";
+        }
+
+        // Main Dashboard Render
+        function renderDashboard() {
+            const events = getStoredEvents();
+            const search = document.getElementById('searchInput').value.toLowerCase();
+            const category = document.getElementById('categoryFilter').value;
+            const status = document.getElementById('statusFilter').value;
+
+            // Filtering Logic
+            const filtered = events.filter(e => {
+                const matchesSearch = e.title.toLowerCase().includes(search) || e.venue.toLowerCase().includes(search);
+                const matchesCategory = category === "All" || e.category === category;
+                const matchesStatus = status === "All" || e.status === status;
+                return matchesSearch && matchesCategory && matchesStatus;
+            });
+
+            // Update Metrics Bar
+            document.getElementById('statTotal').innerText = events.length;
+            document.getElementById('statVenues').innerText = new Set(events.map(e => e.venue)).size;
+            document.getElementById('statOngoing').innerText = events.filter(e => e.status === 'Ongoing').length;
+            document.getElementById('statSync').innerText = events[0]?.scrapedAt || 'N/A';
+
+            // HTML Grid Generator
+            const container = document.getElementById('eventsContainer');
+            if (filtered.length === 0) {
+                container.innerHTML = `
+                    <div class="col-span-full text-center py-12 text-slate-500">
+                        No art events match your applied query filter.
+                    </div>`;
+                return;
+            }
+
+            container.innerHTML = filtered.map(item => `
+                <article class="bg-slate-800/80 border border-slate-700/60 rounded-xl p-5 flex flex-col justify-between hover:border-slate-500 transition">
+                    <div>
+                        <div class="flex justify-between items-start mb-3 gap-2">
+                            <span class="text-xs font-semibold px-2.5 py-1 rounded-full ${getBadgeClass(item.category)}">
+                                ${item.category}
+                            </span>
+                            <span class="text-xs font-mono text-emerald-400 bg-emerald-950/60 border border-emerald-800 px-2 py-0.5 rounded">
+                                ${item.status}
+                            </span>
+                        </div>
+                        <h2 class="text-lg font-semibold text-white leading-snug mb-1">${item.title}</h2>
+                        <p class="text-sm font-medium text-indigo-400 mb-3">📍 ${item.venue}</p>
+                        <p class="text-xs text-slate-300 leading-relaxed mb-4">${item.description}</p>
+                    </div>
+
+                    <div class="pt-3 border-t border-slate-700/50 flex items-center justify-between text-xs">
+                        <span class="text-slate-400 font-mono">📅 ${item.dates}</span>
+                        <a href="${item.url}" target="_blank" rel="noopener" class="text-indigo-400 hover:text-indigo-300 font-medium flex items-center space-x-1">
+                            <span>Portal</span>
+                            <span>↗</span>
+                        </a>
+                    </div>
+                </article>
+            `).join('');
+        }
+
+        // Initial Load
+        document.addEventListener('DOMContentLoaded', renderDashboard);
+    </script>
+</body>
+</html>
